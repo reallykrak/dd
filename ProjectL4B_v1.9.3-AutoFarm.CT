@@ -6,7 +6,7 @@
   <CheatEntries>
     <CheatEntry>
       <ID>23</ID>
-      <Description>"Info | Project L4B "</Description>
+      <Description>"Info | YAPMA BE ABİ "</Description>
       <Options moHideChildren="1" />
       <Color>FFFF80</Color>
       <GroupHeader>1</GroupHeader>
@@ -1173,5 +1173,5 @@ function autoFarmStep()
   end
 end
 
-createHotkey(toggleAutoFarm, VK_F8)</LuaScript>
+createHotkey(toggleAutoFarm, VK_F12)</LuaScript>
 </CheatTable>
