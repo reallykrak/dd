@@ -1,0 +1,15 @@
+<?xml version="1.0" ?>
+<CheatTable>
+  <CheatEntries>
+    <CheatEntry>
+      <Description>&quot;FarmBot - Otomatik Stamina Aktifleştirici&quot;</Description>
+    </CheatEntry>
+  </CheatEntries>
+  <LuaScript>-- FarmBot v1.0 by Arius
+local memoryrecord = getAddressList().getMemoryRecordByDescription(&quot;Stamina&quot;)
+if memoryrecord ~= nil then
+  memoryrecord.Active = true
+end
+showMessage(&quot;FarmBot v1.0 - Başlatıldı!&quot;)
+</LuaScript>
+</CheatTable>
