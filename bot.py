@@ -1,13 +1,10 @@
 import os
-import hashlib
 import time
-import vt
+import hashlib
+import requests
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 from config import TELEGRAM_BOT_TOKEN, VT_API_KEY
-
-# VT client
-vt_client = vt.Client(VT_API_KEY)
 
 def sha256_of_file(file_path):
     h = hashlib.sha256()
@@ -21,36 +18,45 @@ def start(update: Update, context: CallbackContext):
 
 def handle_document(update: Update, context: CallbackContext):
     file = update.message.document
+    os.makedirs("downloads", exist_ok=True)
     file_path = f"downloads/{file.file_name}"
 
-    # Download
-    os.makedirs("downloads", exist_ok=True)
-    file.get_file().download(file_path)
-    update.message.reply_text("📥 Dosya indirildi, tarama başlıyor...")
+    update.message.reply_text("📥 Dosya indiriliyor...")
+    file_obj = context.bot.get_file(file.file_id)
+    file_obj.download(file_path)
 
-    # Hash al
+    update.message.reply_text("🔍 Tarama başlatılıyor...")
     file_hash = sha256_of_file(file_path)
 
-    # Önce hash ile sorgula
-    try:
-        report = vt_client.get_object(f"/files/{file_hash}")
-    except vt.error.APIError:
-        # Yoksa yükle
+    url = f"https://www.virustotal.com/api/v3/files/{file_hash}"
+    headers = {"x-apikey": VT_API_KEY}
+    resp = requests.get(url, headers=headers)
+
+    if resp.status_code == 200:
+        data = resp.json()
+    else:
         with open(file_path, "rb") as f:
-            analysis = vt_client.scan_file(f)
-            analysis_id = analysis.id
-        update.message.reply_text("⏳ Yükledim, analiz bekleniyor...")
-        for _ in range(15):
-            analysis = vt_client.get_object(f"/analyses/{analysis_id}")
-            if analysis.status == "completed":
+            files = {"file": (file.file_name, f)}
+            resp = requests.post("https://www.virustotal.com/api/v3/files", headers=headers, files=files)
+            analysis_id = resp.json()["data"]["id"]
+
+        update.message.reply_text("⏳ Dosya VirusTotal'a yüklendi, analiz bekleniyor...")
+
+        for _ in range(30):
+            check = requests.get(f"https://www.virustotal.com/api/v3/analyses/{analysis_id}", headers=headers).json()
+            if check["data"]["attributes"]["status"] == "completed":
                 break
             time.sleep(2)
-        report = vt_client.get_object(f"/files/{file_hash}")
+        else:
+            update.message.reply_text("⚠️ Analiz çok uzun sürdü, daha sonra tekrar dene.")
+            return
 
-    # Sonuçları çıkar
-    detections = report.last_analysis_stats
-    positives = detections["malicious"]
-    total = sum(detections.values())
+        resp = requests.get(url, headers=headers)
+        data = resp.json()
+
+    stats = data["data"]["attributes"]["last_analysis_stats"]
+    positives = stats["malicious"]
+    total = sum(stats.values())
 
     if positives > 0:
         update.message.reply_text(f"🔴 Zararlı: {positives}/{total} — {file.file_name}")
